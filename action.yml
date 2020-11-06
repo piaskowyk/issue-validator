@@ -1,0 +1,12 @@
+name: 'Issue Validator'
+description: 'Check whether posted issue is valid'
+inputs:
+  github-token:
+    description: The `GITHUB_TOKEN` secret.
+    required: true
+  required-sections:
+    description: Sections required for certain labels(a list, first item is a label name, the rest stand for following sections, all separated by comma).
+    required: true
+runs:
+  using: 'node12'
+  main: 'index.js'

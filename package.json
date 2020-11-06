@@ -1,0 +1,12 @@
+{
+  "name": "check-issue-action",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/karol-bisztyga/check-issue-action.git",
+  "author": "karol-bisztyga <karol.bisztyga@swmansion.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^1.2.6",
+    "@actions/github": "^4.0.0"
+  }
+}
