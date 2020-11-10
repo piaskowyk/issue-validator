@@ -90,6 +90,11 @@ const github = require("@actions/github");
       problem && problems.push(problem + `(for label ${label})`);
     });
 
+    const getValidatorHeader = (updateIndex = 1) => {
+      updateIndex = Number.isNaN(updateIndex) ? 1 : updateIndex;
+      return `## Issue validator - update # ${updateIndex}\n\nHello!\n`;
+    };
+
     const updateComment = async (body) => {
       let result = false;
       const comments = await client.issues.listComments({
@@ -100,9 +105,10 @@ const github = require("@actions/github");
       if (comments && comments.data && comments.data.length) {
         const lastComment = comments.data.slice(-1)[0];
         if (lastComment && lastComment.user.login === "github-actions[bot]") {
-          console.log("updated comment");
-          body = `${lastComment.body}\n\n### UPDATE:\n${body}`;
-          result = true;
+          const lastCommentIndex = Number.parseInt(
+            lastComment.body.split("update # ")[1]
+          );
+          body = `${getValidatorHeader(lastCommentIndex + 1)}${body}`;
           await client.issues.updateComment({
             owner: issue.owner,
             repo: issue.repo,
@@ -110,6 +116,8 @@ const github = require("@actions/github");
             comment_id: lastComment.id,
             body,
           });
+          result = true;
+          console.log("updated comment");
         }
       }
       return result;
@@ -117,6 +125,7 @@ const github = require("@actions/github");
 
     const createNewComment = async (body) => {
       console.log("creating new comment");
+      body = getValidatorHeader() + body;
       await client.issues.createComment({
         owner: issue.owner,
         repo: issue.repo,
@@ -125,29 +134,26 @@ const github = require("@actions/github");
       });
     };
 
-    const createOrUpdateComment = async (header, body) => {
+    const createOrUpdateComment = async (body) => {
       // in case last comment of this issue is created by bot
       // we don't want to re-post but update instead
       let lastCommentUpdated = await updateComment(body);
 
       // no bot-created last comment detected, creating new comment
       if (!lastCommentUpdated) {
-        await createNewComment(header + body);
+        await createNewComment(body);
       }
     };
 
-    const validatorHeader = "## Issue validator\n\nHello!\n";
     if (problems.length) {
       const header =
         "It seems like there are some problems with your issue. Please fix them and wait for the validator to confirm that everything is alright.\nThank you!\n\nValidator encountered following problems:\n\n";
       createOrUpdateComment(
-        validatorHeader + header,
-        problems.map((problem) => `- ${problem}\n`).join("")
+        header + problems.map((problem) => `- ${problem}\n`).join("")
       );
     } else {
       console.log("everything is ok");
       createOrUpdateComment(
-        validatorHeader,
         "Congratulations! Your issue passed the validator! Thank you!"
       );
     }
