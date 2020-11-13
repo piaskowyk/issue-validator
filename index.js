@@ -10,7 +10,7 @@ const github = require("@actions/github");
     const { issue, payload } = github.context;
 
     const issueLabels = payload.issue.labels.map((label) => {
-      return label.name;
+      return label.name.toLowerCase();
     });
 
     const client = github.getOctokit(
@@ -19,7 +19,7 @@ const github = require("@actions/github");
 
     let labeledWith = undefined;
     if (payload.action === "labeled") {
-      labeledWith = payload.label.name;
+      labeledWith = payload.label.name.toLowerCase();
     }
 
     const labels = core.getInput("required-sections").toLowerCase().split(";");
