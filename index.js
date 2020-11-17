@@ -2,9 +2,94 @@ const core = require("@actions/core");
 const github = require("@actions/github");
 
 /**
- * should be used with types: [edited, labeled, unlabeled]
+ * functions
  */
 
+const getSectionPosition = (issueBody, section) => {
+  const regexp = new RegExp(`[#]+[ ]{0,1}${section}`);
+  return issueBody.search(regexp);
+};
+
+const checkIfSectionNotEmpty = (issueBody, section, sectionPosition) => {
+  const sub = issueBody.substr(sectionPosition);
+  const sectionStartIndex =
+    sub.search(new RegExp(`${section}`)) + section.length;
+  const nextSectionPos = sub.search(new RegExp("\n[#]+"));
+  const end = nextSectionPos === -1 ? undefined : nextSectionPos;
+  const sectionContent = sub.substring(sectionStartIndex, end);
+  return sectionContent.replace(/\r?\n|\r/g, "").replace(/ /g, "").length;
+};
+
+const checkSection = (issueBody, section) => {
+  const sectionPosition = getSectionPosition(issueBody, section);
+  if (sectionPosition !== -1) {
+    if (!checkIfSectionNotEmpty(issueBody, section, sectionPosition)) {
+      return `Section ${section} seems to be empty`;
+    }
+  } else {
+    return `Section required but not found: ${section}`;
+  }
+};
+
+const getValidatorHeader = (updateIndex = 1) => {
+  updateIndex = Number.isNaN(updateIndex) ? 1 : updateIndex;
+  return `## Issue validator - update # ${updateIndex}\n\nHello!\n`;
+};
+
+const updateComment = async (client, issue, body) => {
+  const comments = await client.issues.listComments({
+    owner: issue.owner,
+    repo: issue.repo,
+    issue_number: issue.number,
+  });
+  if (comments?.data?.length) {
+    const lastComment = comments.data.slice(-1)[0];
+    if (lastComment?.user?.login !== "github-actions[bot]") {
+      return false;
+    }
+    const lastCommentIndex = Number.parseInt(
+      lastComment.body.split("update # ")[1]
+    );
+    body = `${getValidatorHeader(lastCommentIndex + 1)}${body}`;
+    await client.issues.updateComment({
+      owner: issue.owner,
+      repo: issue.repo,
+      issue_number: issue.number,
+      comment_id: lastComment.id,
+      body,
+    });
+    console.log("updated comment");
+    return true;
+  }
+  return false;
+};
+
+const createNewComment = async (client, issue, body) => {
+  console.log("creating new comment");
+  body = getValidatorHeader() + body;
+  await client.issues.createComment({
+    owner: issue.owner,
+    repo: issue.repo,
+    issue_number: issue.number,
+    body,
+  });
+};
+
+const createOrUpdateComment = async (client, issue, body) => {
+  // in case last comment of this issue is created by bot
+  // we don't want to re-post but update instead
+  let lastCommentUpdated = await updateComment(client, issue, body);
+
+  // no bot-created last comment detected, creating new comment
+  if (!lastCommentUpdated) {
+    await createNewComment(client, issue, body);
+  }
+};
+
+/**
+ * main
+ * should be used with types: [edited, labeled, unlabeled]
+ */
 (async () => {
   try {
     const { issue, payload } = github.context;
@@ -58,102 +143,24 @@ const github = require("@actions/github");
     const issueBody = payload.issue.body.toLowerCase();
     const problems = [];
 
-    const getSectionPosition = (section) => {
-      const regexp = new RegExp(`[#]+[ ]{0,1}${section}`);
-      const position = issueBody.search(regexp);
-      return position;
-    };
-
-    const checkIfSectionNotEmpty = (section, sectionPosition) => {
-      const sub = issueBody.substr(sectionPosition);
-      const sectionStartIndex =
-        sub.search(new RegExp(`${section}`)) + section.length;
-      const nextSectionPos = sub.search(new RegExp("\n[#]+"));
-      const end = nextSectionPos === -1 ? undefined : nextSectionPos;
-      const sectionContent = sub.substring(sectionStartIndex, end);
-      return sectionContent.replace(/\r?\n|\r/g, "").replace(/ /g, "").length;
-    };
-
-    const checkSection = (section) => {
-      const sectionPosition = getSectionPosition(section);
-      if (sectionPosition !== -1) {
-        if (!checkIfSectionNotEmpty(section, sectionPosition)) {
-          return `Section ${section} seems to be empty`;
-        }
-      } else {
-        return `Section required but not found: ${section}`;
-      }
-    };
-
     requiredSections.forEach(([section, label]) => {
-      const problem = checkSection(section);
+      const problem = checkSection(issueBody, section);
       problem && problems.push(problem + `(for label ${label})`);
     });
-
-    const getValidatorHeader = (updateIndex = 1) => {
-      updateIndex = Number.isNaN(updateIndex) ? 1 : updateIndex;
-      return `## Issue validator - update # ${updateIndex}\n\nHello!\n`;
-    };
-
-    const updateComment = async (body) => {
-      const comments = await client.issues.listComments({
-        owner: issue.owner,
-        repo: issue.repo,
-        issue_number: issue.number,
-      });
-      if (comments?.data?.length) {
-        const lastComment = comments.data.slice(-1)[0];
-        if (lastComment?.user?.login !== "github-actions[bot]") {
-          return false;
-        }
-        const lastCommentIndex = Number.parseInt(
-          lastComment.body.split("update # ")[1]
-        );
-        body = `${getValidatorHeader(lastCommentIndex + 1)}${body}`;
-        await client.issues.updateComment({
-          owner: issue.owner,
-          repo: issue.repo,
-          issue_number: issue.number,
-          comment_id: lastComment.id,
-          body,
-        });
-        console.log("updated comment");
-        return true;
-      }
-      return false;
-    };
-
-    const createNewComment = async (body) => {
-      console.log("creating new comment");
-      body = getValidatorHeader() + body;
-      await client.issues.createComment({
-        owner: issue.owner,
-        repo: issue.repo,
-        issue_number: issue.number,
-        body,
-      });
-    };
-
-    const createOrUpdateComment = async (body) => {
-      // in case last comment of this issue is created by bot
-      // we don't want to re-post but update instead
-      let lastCommentUpdated = await updateComment(body);
-
-      // no bot-created last comment detected, creating new comment
-      if (!lastCommentUpdated) {
-        await createNewComment(body);
-      }
-    };
 
     if (problems.length) {
       const header =
         "It seems like there are some problems with your issue. Please fix them and wait for the validator to confirm that everything is alright.\nThank you!\n\nValidator encountered following problems:\n\n";
       createOrUpdateComment(
+        client,
+        issue,
         header + problems.map((problem) => `- ${problem}\n`).join("")
       );
     } else {
       console.log("everything is ok");
       createOrUpdateComment(
+        client,
+        issue,
         "Congratulations! Your issue passed the validator! Thank you!"
       );
     }
