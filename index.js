@@ -17,10 +17,10 @@ const github = require("@actions/github");
       core.getInput("github-token", { required: true })
     );
 
-    let labeledWith = undefined;
-    if (payload.action === "labeled") {
-      labeledWith = payload.label.name.toLowerCase();
-    }
+    const labeledWith =
+      payload.action === "labeled"
+        ? payload.label.name.toLowerCase()
+        : undefined;
 
     const labels = core.getInput("required-sections").toLowerCase().split(";");
     const requiredSections = [];
@@ -58,7 +58,7 @@ const github = require("@actions/github");
     const issueBody = payload.issue.body.toLowerCase();
     const problems = [];
 
-    const checkIfSectionExists = (section) => {
+    const getSectionPosition = (section) => {
       const regexp = new RegExp(`[#]+[ ]{0,1}${section}`);
       const position = issueBody.search(regexp);
       return position;
@@ -75,7 +75,7 @@ const github = require("@actions/github");
     };
 
     const checkSection = (section) => {
-      const sectionPosition = checkIfSectionExists(section);
+      const sectionPosition = getSectionPosition(section);
       if (sectionPosition !== -1) {
         if (!checkIfSectionNotEmpty(section, sectionPosition)) {
           return `Section ${section} seems to be empty`;
@@ -96,31 +96,31 @@ const github = require("@actions/github");
     };
 
     const updateComment = async (body) => {
-      let result = false;
       const comments = await client.issues.listComments({
         owner: issue.owner,
         repo: issue.repo,
         issue_number: issue.number,
       });
-      if (comments && comments.data && comments.data.length) {
+      if (comments?.data?.length) {
         const lastComment = comments.data.slice(-1)[0];
-        if (lastComment && lastComment.user.login === "github-actions[bot]") {
-          const lastCommentIndex = Number.parseInt(
-            lastComment.body.split("update # ")[1]
-          );
-          body = `${getValidatorHeader(lastCommentIndex + 1)}${body}`;
-          await client.issues.updateComment({
-            owner: issue.owner,
-            repo: issue.repo,
-            issue_number: issue.number,
-            comment_id: lastComment.id,
-            body,
-          });
-          result = true;
-          console.log("updated comment");
+        if (lastComment?.user?.login !== "github-actions[bot]") {
+          return false;
         }
+        const lastCommentIndex = Number.parseInt(
+          lastComment.body.split("update # ")[1]
+        );
+        body = `${getValidatorHeader(lastCommentIndex + 1)}${body}`;
+        await client.issues.updateComment({
+          owner: issue.owner,
+          repo: issue.repo,
+          issue_number: issue.number,
+          comment_id: lastComment.id,
+          body,
+        });
+        console.log("updated comment");
+        return true;
       }
-      return result;
+      return false;
     };
 
     const createNewComment = async (body) => {
