@@ -6,7 +6,7 @@ const github = require("@actions/github");
  */
 
 const getSectionPosition = (issueBody, section) => {
-  const regexp = new RegExp(`[#]+[ ]{0,1}${section}`);
+  const regexp = new RegExp(`[#]+[ ]+${section}`);
   return issueBody.search(regexp);
 };
 
@@ -42,9 +42,10 @@ const updateComment = async (client, issue, body) => {
     repo: issue.repo,
     issue_number: issue.number,
   });
-  if (comments?.data?.length) {
+  // todo refactor to optional chaining, kept that way to make it work with older nodejs versions
+  if (comments && comments.data && comments.data.length) {
     const lastComment = comments.data.slice(-1)[0];
-    if (lastComment?.user?.login !== "github-actions[bot]") {
+    if (lastComment && lastComment.user && lastComment.user.login !== "github-actions[bot]") {
       return false;
     }
     const lastCommentIndex = Number.parseInt(
