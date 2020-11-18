@@ -30,7 +30,7 @@ This is case insensitive but watch out for the spaces(just be careful to not put
 Here is the example config file:
 
 ```yml
-name: Check versions
+name: Validate issues
 on:
   issues:
     types: [edited, labeled, unlabeled]
