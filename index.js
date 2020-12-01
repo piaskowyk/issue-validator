@@ -45,7 +45,11 @@ const updateComment = async (client, issue, body) => {
   // todo refactor to optional chaining, kept that way to make it work with older nodejs versions
   if (comments && comments.data && comments.data.length) {
     const lastComment = comments.data.slice(-1)[0];
-    if (lastComment && lastComment.user && lastComment.user.login !== "github-actions[bot]") {
+    if (
+      lastComment &&
+      lastComment.user &&
+      lastComment.user.login !== "github-actions[bot]"
+    ) {
       return false;
     }
     const lastCommentIndex = Number.parseInt(
@@ -151,7 +155,7 @@ const createOrUpdateComment = async (client, issue, body) => {
 
     if (problems.length) {
       const header =
-        "It seems like there are some problems with your issue. Please fix them and wait for the validator to confirm that everything is alright.\nThank you!\n\nValidator encountered following problems:\n\n";
+        "It seems like there are some problems with your issue. Please fix them and wait for the validator to confirm that everything is alright.\nThank you!\n\nValidator encountered the following problems:\n\n";
       createOrUpdateComment(
         client,
         issue,
