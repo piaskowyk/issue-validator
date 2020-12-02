@@ -112,8 +112,14 @@ const createOrUpdateComment = async (client, issue, body) => {
         ? payload.label.name.toLowerCase()
         : undefined;
 
+    console.log("labels in issue detected", issueLabels);
+    console.log("action", payload.action);
+    if (labeledWith) {
+      console.log("labeled with", labeledWith);
+    }
+
     const labels = core.getInput("required-sections").toLowerCase().split(";");
-    const requiredSections = [];
+    let requiredSections = [];
     labels.forEach((labelData) => {
       const arr = labelData.split(",");
       const labelName = arr[0];
@@ -132,10 +138,18 @@ const createOrUpdateComment = async (client, issue, body) => {
         }
       }
       const sections = arr.slice(1);
-      sections.forEach((section) => {
-        requiredSections.push([section, labelName]);
-      });
+      requiredSections = requiredSections.concat(sections.map((section) => [section, labelName]));
+      console.log(
+        "adding sections to required ones",
+        sections,
+        "for label",
+        labelName,
+        "current result",
+        requiredSections
+      );
     });
+
+    console.log("required sections", requiredSections);
 
     // there are no required sections, we should break here
     // unless it comes from the fact that the action is [unlabeled]
@@ -148,10 +162,14 @@ const createOrUpdateComment = async (client, issue, body) => {
     const issueBody = payload.issue.body.toLowerCase();
     const problems = [];
 
+    console.log("checking sections")
     requiredSections.forEach(([section, label]) => {
       const problem = checkSection(issueBody, section);
+      console.log("for", section, label, "the problem is", problem);
       problem && problems.push(problem + `(for label ${label})`);
     });
+
+    console.log("all problems", problems);
 
     if (problems.length) {
       const header =
