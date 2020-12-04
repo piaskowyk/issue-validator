@@ -44,23 +44,30 @@ const updateComment = async (client, issue, body) => {
   });
   // todo refactor to optional chaining, kept that way to make it work with older nodejs versions
   if (comments && comments.data && comments.data.length) {
-    const lastComment = comments.data.slice(-1)[0];
-    if (
-      lastComment &&
-      lastComment.user &&
-      lastComment.user.login !== "github-actions[bot]"
-    ) {
+    let botComment;
+    for (let i = 0; i < comments.data.length; ++i) {
+      const comment = comments.data[i];
+      if (
+        comment &&
+        comment.user &&
+        comment.user.login === "github-actions[bot]"
+      ) {
+        botComment = comment;
+        break;
+      }
+    }
+    if (!botComment) {
       return false;
     }
-    const lastCommentIndex = Number.parseInt(
-      lastComment.body.split("update # ")[1]
+    const botCommentIndex = Number.parseInt(
+      botComment.body.split("update # ")[1]
     );
-    body = `${getValidatorHeader(lastCommentIndex + 1)}${body}`;
+    body = `${getValidatorHeader(botCommentIndex + 1)}${body}`;
     await client.issues.updateComment({
       owner: issue.owner,
       repo: issue.repo,
       issue_number: issue.number,
-      comment_id: lastComment.id,
+      comment_id: botComment.id,
       body,
     });
     console.log("updated comment");
@@ -81,11 +88,11 @@ const createNewComment = async (client, issue, body) => {
 };
 
 const createOrUpdateComment = async (client, issue, body) => {
-  // in case last comment of this issue is created by bot
+  // in case some comment of this issue is created by bot
   // we don't want to re-post but update instead
   let lastCommentUpdated = await updateComment(client, issue, body);
 
-  // no bot-created last comment detected, creating new comment
+  // no bot-created comment detected, creating new comment
   if (!lastCommentUpdated) {
     await createNewComment(client, issue, body);
   }
@@ -138,7 +145,9 @@ const createOrUpdateComment = async (client, issue, body) => {
         }
       }
       const sections = arr.slice(1);
-      requiredSections = requiredSections.concat(sections.map((section) => [section, labelName]));
+      requiredSections = requiredSections.concat(
+        sections.map((section) => [section, labelName])
+      );
       console.log(
         "adding sections to required ones",
         sections,
@@ -162,7 +171,7 @@ const createOrUpdateComment = async (client, issue, body) => {
     const issueBody = payload.issue.body.toLowerCase();
     const problems = [];
 
-    console.log("checking sections")
+    console.log("checking sections");
     requiredSections.forEach(([section, label]) => {
       const problem = checkSection(issueBody, section);
       console.log("for", section, label, "the problem is", problem);
