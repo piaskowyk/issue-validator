@@ -33,7 +33,7 @@ const checkSection = (issueBody, section) => {
 
 const getValidatorHeader = (updateIndex = 1) => {
   updateIndex = Number.isNaN(updateIndex) ? 1 : updateIndex;
-  return `## Issue validator - update # ${updateIndex}\n\nHello!\n`;
+  return `## Issue validator - update # ${updateIndex}\n`;
 };
 
 const updateComment = async (client, issue, body) => {
@@ -193,7 +193,7 @@ const createOrUpdateComment = async (client, issue, body) => {
       createOrUpdateComment(
         client,
         issue,
-        "Congratulations! Your issue passed the validator! Thank you!"
+        "You correctly filled the issue template, thanks!"
       );
     }
   } catch (error) {
