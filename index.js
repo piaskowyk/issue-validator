@@ -31,10 +31,7 @@ const checkSection = (issueBody, section) => {
   }
 };
 
-const getValidatorHeader = (updateIndex = 1) => {
-  updateIndex = Number.isNaN(updateIndex) ? 1 : updateIndex;
-  return `## Issue validator - update # ${updateIndex}\n`;
-};
+const getValidatorHeader = () => '## Issue validator';
 
 const updateComment = async (client, issue, body) => {
   const comments = await client.issues.listComments({
@@ -59,10 +56,8 @@ const updateComment = async (client, issue, body) => {
     if (!botComment) {
       return false;
     }
-    const botCommentIndex = Number.parseInt(
-      botComment.body.split("update # ")[1]
-    );
-    body = `${getValidatorHeader(botCommentIndex + 1)}${body}`;
+    
+    body = `${getValidatorHeader()}${body}`;
     await client.issues.updateComment({
       owner: issue.owner,
       repo: issue.repo,
@@ -182,7 +177,7 @@ const createOrUpdateComment = async (client, issue, body) => {
 
     if (problems.length) {
       const header =
-        "It seems like there are some problems with your issue. Please fix them and wait for the validator to confirm that everything is alright.\nThank you!\n\nValidator encountered the following problems:\n\n";
+        "\n\nThe issue is invalid!\n\n";
       createOrUpdateComment(
         client,
         issue,
@@ -193,7 +188,7 @@ const createOrUpdateComment = async (client, issue, body) => {
       createOrUpdateComment(
         client,
         issue,
-        "You correctly filled the issue template, thanks!"
+        "\n\nThe issue is valid!"
       );
     }
   } catch (error) {
