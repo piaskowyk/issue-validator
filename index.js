@@ -183,13 +183,6 @@ const createOrUpdateComment = async (client, issue, body) => {
         issue,
         header + problems.map((problem) => `- ${problem}\n`).join("")
       );
-    } else {
-      console.log("everything is ok");
-      createOrUpdateComment(
-        client,
-        issue,
-        "\n\nThe issue is valid!"
-      );
     }
   } catch (error) {
     console.error(error);
